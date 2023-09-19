@@ -30,7 +30,7 @@ const combineSources = (contracts: Contracts): string => {
 const ContractDeploy = ({ contractName }: ContractDeployProps) => {
   const dispatch = useDispatch();
 
-  const { provider, reefscanUrl, notify } = useSelector(
+  const { provider, reefscanUrl, verificationApiUrl, notify } = useSelector(
     (state: StateType) => state.utils
   );
   const { contracts, errorMessage } = useSelector(
@@ -47,6 +47,7 @@ const ContractDeploy = ({ contractName }: ContractDeployProps) => {
 
   const partialDeployContent = {
     reefscanUrl,
+    verificationApiUrl,
     contractName,
     signer: signer.signer,
     contract: { ...contract, source },

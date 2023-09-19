@@ -1,4 +1,4 @@
-# Reef remix plugin
+# Reef Remix plugin
 
 Install and start plugin
 ```bash
@@ -6,7 +6,8 @@ yarn
 yarn start
 ```
 
-### Inject plugin in remix
+### Inject plugin in Remix
+
 1. Go to Remix plugin manager
 2. Connect to a Local Plugin
 3. Fill in names
@@ -16,4 +17,5 @@ yarn start
 7. OK
 8. Reef network plugin is above plugin manager icon.
 
+> Note: Some issues have been detected with Brave browser, so in case of problems, try with Chrome.
 

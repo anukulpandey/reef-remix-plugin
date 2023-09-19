@@ -39,11 +39,11 @@ export interface ReefContract extends BaseContract {
 const contractVerificatorApi = axios.create();
 
 const doesContractExist = async (url: string, address: string): Promise<boolean> => 
-  axios.get(`${url}/api/contract/${address}`)
+  axios.get(`${url}/contract/${address}`)
     .then((_) => true)
     .catch((_) => false);
 
-// Complete await cicle is in pattern: 1+2+3+...+steps.
+// Complete await cycle is in pattern: 1+2+3+...+steps.
 // Execution time = steps*(steps+1) / 2 s; 
 // I.E. Steps = 10; Execution time = 55s
 const waitUntilContractExists = async (url: string, address: string, steps=20): Promise<void> => {
@@ -58,7 +58,12 @@ const waitUntilContractExists = async (url: string, address: string, steps=20): 
 }
 
 export const verifyContract = async (deployedContract: Contract, contract: ReefContract, arg: string[], notify: NotifyFun, url?: string): Promise<void> => {
-  if (!url) { return; }
+  if (!url) { 
+    console.warn("Verification API URL is not set");
+    return; 
+  }
+
+  notify(`Verifying ${contract.contractName} contract...`);
   try {
     const body: VerificationContractReq = {
       address: deployedContract.address,
@@ -74,6 +79,7 @@ export const verifyContract = async (deployedContract: Contract, contract: ReefC
     };
 
     await waitUntilContractExists(url, deployedContract.address);
+    console.log("Contract was detected");
     await contractVerificatorApi.post<VerificationContractReq, AxiosResponse>
       (`${url}${CONTRACT_VERIFICATION_URL}`, body)
     notify(verificationNofitication(contract.contractName, true));
@@ -95,6 +101,7 @@ interface DeployParams {
   signer: Signer,
   contractName: string,
   reefscanUrl?: string;
+  verificationApiUrl?: string;
   contract: ReefContract,
   notify: NotifyFun,
   dispatch: Dispatch<any>
@@ -107,7 +114,7 @@ const deployedNotification = (name: string, address: string, url?: string): stri
 const verificationNofitication = (name: string, result: boolean): string => 
   `<br>Contract ${name} was${result ? "" : " not"} verified!`;
 
-export const submitDeploy = async ({params, signer, contractName, reefscanUrl, contract, dispatch, notify}: DeployParams) => {
+export const submitDeploy = async ({params, signer, contractName, reefscanUrl, verificationApiUrl, contract, dispatch, notify}: DeployParams) => {
   try {
     dispatch(compiledContractDeploying());
     notify(`Deploying ${contractName} contract...`);
@@ -119,7 +126,7 @@ export const submitDeploy = async ({params, signer, contractName, reefscanUrl, c
       reefscanUrl
     ));
 
-    verifyContract(newContract, contract,  params, notify, reefscanUrl);
+    verifyContract(newContract, contract,  params, notify, verificationApiUrl);
     dispatch(contractAdd(contractName, newContract));
     dispatch(compiledContractDeployed());
   } catch (e: any) {

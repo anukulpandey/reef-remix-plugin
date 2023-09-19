@@ -10,6 +10,7 @@ import {
   setNotifyAction,
   setProviderAction,
   setReefscanUrl,
+  setVerificationApiUrl
 } from "./store/actions/utils";
 import { RemixSigner } from "./store/localState";
 import { getNetworkSpec, NetworkName } from "./utils/network";
@@ -89,6 +90,7 @@ const App = ({ notify }: App) => {
           throw new Error('Reef extension doesn\'t seem to have any accounts available. Create or inject your existing account and deploy your first contract!')
         }
         dispatch(setReefscanUrl(network.reefscanUrl));
+        dispatch(setVerificationApiUrl(network.verificationApiUrl));
         dispatch(setProviderAction(newProvider));
         dispatch(signersAddList(accounts));
         setStatus("success");
