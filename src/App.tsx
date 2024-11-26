@@ -45,7 +45,7 @@ const App = ({ notify }: App) => {
       setStatus("failed");
     }
 
-    if(reefStateNetwork && !loading){
+    if(reefStateNetwork && !loading && !error){
         dispatch(setReefscanUrl(reefStateNetwork.reefscanUrl));
         dispatch(setVerificationApiUrl(reefStateNetwork.verificationApiUrl));
         dispatch(setProviderAction(provider));
