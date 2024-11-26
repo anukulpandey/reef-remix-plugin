@@ -1,5 +1,3 @@
-import { WsProvider } from "@polkadot/api";
-import { Provider, Signer } from "@reef-defi/evm-provider";
 import { useEffect, useState } from "react";
 import Constructor from "./components/Constructor";
 import Loading from "./components/common/loading/Loading";
@@ -12,14 +10,11 @@ import {
   setReefscanUrl,
   setVerificationApiUrl
 } from "./store/actions/utils";
-import { RemixSigner } from "./store/localState";
 import { getNetworkSpec, NetworkName } from "./utils/network";
 import { contractRemoveAll } from "./store/actions/contracts";
 import Dot from "./components/common/Dot";
-import { web3Accounts, web3Enable } from "@reef-defi/extension-dapp";
-
-import type { InjectedAccountWithMeta } from "@reef-defi/extension-inject/types";
-import type { Signer as InjectedSigner } from "@polkadot/api/types";
+import { useInitReefState } from "./hooks/useInitReefState";
+import { network as nw } from "@reef-chain/util-lib";
 
 interface App {
   notify: NotifyFun;
@@ -27,28 +22,10 @@ interface App {
 
 type Status = "loading" | "success" | "failed";
 
-const accountToSigner =
-  (provider: Provider, sign: InjectedSigner) =>
-  async (account: InjectedAccountWithMeta): Promise<RemixSigner> => {
-    const signer = new Signer(provider, account.address, sign);
-    const evmAddress = await signer.getAddress();
-    let isEvmClaimed = await signer.isClaimed();
-
-    return {
-      signer,
-      evmAddress,
-      isEvmClaimed,
-      address: account.address,
-      name: account.meta.name || "",
-      genesisHash: account.meta.genesisHash,
-      balance: await provider.getBalance(evmAddress),
-    };
-  };
-
 const App = ({ notify }: App) => {
   const dispatch = useDispatch();
+  const {error,provider,signers:accounts,loading,network:reefStateNetwork,reefState} = useInitReefState("reef-remix-plugin",{network:nw.AVAILABLE_NETWORKS.mainnet});
 
-  const [error, setError] = useState("");
   const [status, setStatus] = useState<Status>("success");
   const [network, setNetwork] = useState(getNetworkSpec(NetworkName.Mainnet));
 
@@ -57,56 +34,31 @@ const App = ({ notify }: App) => {
   }, []);
 
   useEffect(() => {
-    const newProvider = new Provider({ provider: new WsProvider(network.url) });
-    const load = async () => {
-      try {
-        setError("");
-        setStatus("loading");
-        dispatch(signersClear());
-        dispatch(contractRemoveAll());
-        await newProvider.api.isReadyOrError.catch(async (err) => {
-          throw new Error(
-            `There was an error when connecting to network ${network.name}... Check network status!`
-          );
-        });
-        const inj = await web3Enable("reef-remix-plugin");
-        if (inj.length === 0) {
-          throw new Error(
-            "Reef extension not detected. Please install it at: https://github.com/reef-defi/browser-extension"
-          );
-        }
-        const accountsInj = await web3Accounts();
-        const accounts = (
-          await Promise.all(
-            accountsInj.map(accountToSigner(newProvider, inj[0].signer))
-          )
-        ).filter(
-          (account) =>
-            !network.genesisHash ||
-            !account.genesisHash ||
-            account.genesisHash === network.genesisHash
-        );
-        if (accounts.length === 0) {
-          throw new Error('Reef extension doesn\'t seem to have any accounts available. Create or inject your existing account and deploy your first contract!')
-        }
-        dispatch(setReefscanUrl(network.reefscanUrl));
-        dispatch(setVerificationApiUrl(network.verificationApiUrl));
-        dispatch(setProviderAction(newProvider));
+    if(loading && !error){
+      setStatus("loading");
+      dispatch(signersClear());
+      dispatch(contractRemoveAll());
+    }
+
+    if(error){
+      notify(error.message, "error");
+      setStatus("failed");
+    }
+
+    if(reefStateNetwork && !loading){
+        dispatch(setReefscanUrl(reefStateNetwork.reefscanUrl));
+        dispatch(setVerificationApiUrl(reefStateNetwork.verificationApiUrl));
+        dispatch(setProviderAction(provider));
         dispatch(signersAddList(accounts));
         setStatus("success");
-      } catch (e: any) {
-        console.log(e);
-        setError(e.message);
-        notify(e.message, "error");
-        setStatus("failed");
-      }
-    };
-    load();
+    }
 
-    return () => {
-      newProvider.api.disconnect();
-    };
-  }, [network]);
+  }, [network,error,provider,accounts,reefStateNetwork,loading]);
+
+  useEffect(()=>{
+    const nwToSelect = [nw.AVAILABLE_NETWORKS.mainnet,nw.AVAILABLE_NETWORKS.testnet,nw.AVAILABLE_NETWORKS.localhost].find((item) => item.name === network.name);
+    reefState.setSelectedNetwork(nwToSelect)
+  },[network])
 
   return (
     <div className="app">
@@ -188,7 +140,7 @@ const App = ({ notify }: App) => {
       {status === "loading" && <Loading />}
       {status === "success" && <Constructor />}
       {status === "failed" && (
-        <div className="text text-danger m-3">{error}</div>
+        <div className="text text-danger m-3">{error?.message}</div>
       )}
     </div>
   );
